@@ -1,5 +1,4 @@
 import { routeAgentRequest, type Schedule } from "agents";
-
 import { getSchedulePrompt } from "agents/schedule";
 
 import { AIChatAgent } from "@cloudflare/ai-chat";
@@ -13,17 +12,11 @@ import {
   createUIMessageStreamResponse,
   type ToolSet
 } from "ai";
-import { openai } from "@ai-sdk/openai";
+
+import { createWorkersAI } from "workers-ai-provider";
+
 import { processToolCalls, cleanupMessages } from "./utils";
 import { tools, executions } from "./tools";
-// import { env } from "cloudflare:workers";
-
-const model = openai("gpt-4o-2024-11-20");
-// Cloudflare AI Gateway
-// const openai = createOpenAI({
-//   apiKey: env.OPENAI_API_KEY,
-//   baseURL: env.GATEWAY_BASE_URL,
-// });
 
 /**
  * Chat Agent implementation that handles real-time AI chat interactions
@@ -36,15 +29,27 @@ export class Chat extends AIChatAgent<Env> {
     onFinish: StreamTextOnFinishCallback<ToolSet>,
     options?: { abortSignal?: AbortSignal }
   ) {
-    // const mcpConnection = await this.mcp.connect(
-    //   "https://path-to-mcp-server/sse"
-    // );
-
     // Collect all tools, including MCP tools
-    const allTools = {
-      ...tools,
-      ...this.mcp.getAITools()
-    };
+    const lastUserText =
+  [...this.messages]
+    .reverse()
+    .find((m) => m.role === "user")
+    ?.parts?.find((p) => p.type === "text")
+    // @ts-ignore
+    ?.text ?? "";
+
+const wantsScheduling = /(schedule|remind|reminder|task|todo|calendar|appointment)/i.test(
+  String(lastUserText)
+);
+
+// Only enable tools when the user actually asks for scheduling
+const allTools = wantsScheduling
+  ? { ...tools, ...this.mcp.getAITools() }
+  : {};
+
+    // Workers AI model (Llama 3.3) via the AI SDK provider
+    const workersai = createWorkersAI({ binding: this.env.AI });
+    const model = workersai("@cf/meta/llama-3.3-70b-instruct-fp8-fast");
 
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
@@ -60,19 +65,23 @@ export class Chat extends AIChatAgent<Env> {
           executions
         });
 
+        // Build the system prompt dynamically
+const scheduleBlock = wantsScheduling
+  ? `\n\n${getSchedulePrompt({ date: new Date() })}\n\nIf the user asks to schedule a task, use the schedule tool.\n`
+  : "";
+
+const systemPrompt = `You are a helpful assistant.
+Only use tools when the user explicitly asks for scheduling or tasks.
+
+${scheduleBlock}`;
+
         const result = streamText({
-          system: `You are a helpful assistant that can do various tasks... 
-
-${getSchedulePrompt({ date: new Date() })}
-
-If the user asks to schedule a task, use the schedule tool to schedule the task.
-`,
-
+          system: systemPrompt,
           messages: await convertToModelMessages(processedMessages),
           model,
           tools: allTools,
           // Type boundary: streamText expects specific tool types, but base class uses ToolSet
-          // This is safe because our tools satisfy ToolSet interface (verified by 'satisfies' in tools.ts)
+          // This is safe because our tools satisfy ToolSet interface
           onFinish: onFinish as unknown as StreamTextOnFinishCallback<
             typeof allTools
           >,
@@ -86,6 +95,7 @@ If the user asks to schedule a task, use the schedule tool to schedule the task.
 
     return createUIMessageStreamResponse({ stream });
   }
+
   async executeTask(description: string, _task: Schedule<string>) {
     await this.saveMessages([
       ...this.messages,
@@ -113,21 +123,40 @@ export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext) {
     const url = new URL(request.url);
 
+    // The starter UI calls this endpoint during startup.
     if (url.pathname === "/check-open-ai-key") {
-      const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
       return Response.json({
-        success: hasOpenAIKey
+        success: true,
+        provider: "workers-ai"
       });
     }
-    if (!process.env.OPENAI_API_KEY) {
-      console.error(
-        "OPENAI_API_KEY is not set, don't forget to set it locally in .dev.vars, and use `wrangler secret bulk .dev.vars` to upload it to production"
-      );
+
+    // 1) Try agent routes first
+    const agentResponse = await routeAgentRequest(request, env);
+    if (agentResponse) return agentResponse;
+
+    // 2) Serve static assets (the chat UI) from /public
+    // Wrangler "assets" provides env.ASSETS.fetch(...)
+    const assets = (env as any).ASSETS;
+    if (assets?.fetch) {
+      // Try the exact asset path
+      let res = await assets.fetch(request);
+
+      // SPA fallback: if asset not found and browser expects HTML, serve index.html
+      if (
+        res.status === 404 &&
+        request.headers.get("accept")?.includes("text/html")
+      ) {
+        const indexUrl = new URL(request.url);
+        indexUrl.pathname = "/index.html";
+        res = await assets.fetch(new Request(indexUrl.toString(), request));
+      }
+
+      return res;
     }
-    return (
-      // Route the request to our agent or return 404 if not found
-      (await routeAgentRequest(request, env)) ||
-      new Response("Not found", { status: 404 })
-    );
+
+    // If for some reason ASSETS isn't bound, return 404
+    return new Response("Not found", { status: 404 });
   }
 } satisfies ExportedHandler<Env>;
+
