@@ -166,10 +166,6 @@ Possible enhancements to consider:
 * Frontend: React + Vite
 * Styling: CSS
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
 ## License
 
 MIT License
@@ -185,6 +181,4 @@ Poorna Sai Karthik Lallaboyina
 * Workers AI Documentation: https://developers.cloudflare.com/workers-ai/
 * Cloudflare Agents SDK: https://developers.cloudflare.com/agents/
 
----
 
-Built on Cloudflare's Developer Platform
