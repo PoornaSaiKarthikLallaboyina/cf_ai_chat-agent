@@ -1,6 +1,10 @@
 Cloudflare AI Chat Agent
+
 A stateful AI chat application built on Cloudflare using Workers AI, Durable Objects, and the Cloudflare Agents SDK.
+
+
 Overview
+
 This project demonstrates how to build a complete AI-powered application using Cloudflare's platform primitives, including:
 
 Large Language Model (LLM) - Workers AI with Llama 3.3
@@ -8,9 +12,12 @@ Workflow and Coordination Layer - Cloudflare Agents SDK
 User Input - Chat UI with streaming responses
 Persistent Memory and State - Durable Objects
 
+
 Architecture
+
 Browser Chat UI → Cloudflare Worker (API + Routing) → Cloudflare Agent (Durable Object) → Workers AI (Llama 3.3)
 Components
+
 
 Cloudflare Workers - API layer and request routing
 Cloudflare Agents SDK - Real-time AI chat and workflow orchestration
