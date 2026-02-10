@@ -56,10 +56,25 @@ This enables:
 Example:
 
 ```
-User: Remember that my favorite fruit is mango.
+User: Hello! What can you do?
 
-User: What is my favorite fruit?
-Assistant: Your favorite fruit is mango.
+Assistant: I'm a helpful assistant, which means I can assist with a wide range of tasks and questions. I can provide information, answer questions, and help with topics such as history, science, technology, and more. I can also engage in conversation, provide definitions, and offer suggestions. If you have a specific question or topic in mind, feel free to ask, and I'll do my best to help!
+
+User: what is chatgpt?
+
+Assistant: ChatGPT is an AI chatbot developed by the company OpenAI. ChatGPT stands for "Chat Generative Pre-trained Transformer." It's a type of language model that uses natural language               processing to generate human-like text responses to user input.
+
+            ChatGPT is designed to engage in conversation, answer questions, and provide information on a wide range of topics. It can understand and respond to natural language input, using             context and understanding to generate relevant and accurate responses.
+            
+            Some of the key features of ChatGPT include:
+            
+            Conversational interface: ChatGPT allows users to interact with it in a conversational manner, using natural language to ask questions or provide input.
+            Language understanding: ChatGPT can understand and interpret natural language, including nuances and context.
+            Text generation: ChatGPT can generate human-like text responses to user input, using a range of styles and tones.
+            Knowledge base: ChatGPT has been trained on a massive dataset of text from the internet, books, and other sources, giving it a broad knowledge base to draw upon.
+            ChatGPT has many potential applications, including:
+            
+            Customer service: ChatGPT can be used to provide automated customer support, answering frequent questions and helping users with basic issues.
 ```
 
 ### Agent Workflow and Tool Orchestration
